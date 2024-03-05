@@ -1,0 +1,63 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingLeft="5dp"
+    android:paddingTop="16dp"
+    android:paddingRight="5dp"
+    android:paddingBottom="16dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:id="@+id/topLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:onClick="onButtonClick1"
+            android:text="Run CPU" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:onClick="onButtonClick2"
+            android:text="Run GPU" />
+    </LinearLayout>
+
+    <Spinner
+        android:id="@+id/benchmarkSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/topLayout"
+        android:layout_marginTop="10dp"
+        android:layout_centerHorizontal="true"
+        android:entries="@array/benchmark_options"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/benchmarkSpinner"
+        android:layout_marginTop="10dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#000000"> <!-- Set black background -->
+
+            <TextView
+                android:id="@+id/outputTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="644dp"
+            android:textColor="#FFFFFF"
+            android:text="" />
+        </FrameLayout>
+    </ScrollView>
+</RelativeLayout>

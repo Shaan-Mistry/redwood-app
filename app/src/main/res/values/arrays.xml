@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="benchmark_options">
+        <item>k_ComputeMortonCode</item>
+        <item>k_SimpleRadixSort</item>
+        <item>k_CountUnique</item>
+        <item>k_BuildRadixTree</item>
+        <item>k_EdgeCount</item>
+        <item>k_PartialSum</item>
+        <item>k_MakeOctNodes</item>
+        <item>k_LinkOctreeNodes</item>
+        <item>All Benchmarks</item>
+    </string-array>
+</resources>
