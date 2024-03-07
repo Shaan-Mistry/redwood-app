@@ -11,6 +11,7 @@ project("redwood" LANGUAGES CXX)
 # For more examples on how to use CMake, see https://github.com/android/ndk-samples.
 
 
+# Add shaderc static library
 get_filename_component(SHADERC_SRC
         ${ANDROID_NDK}/sources/third_party/shaderc
         ABSOLUTE)
@@ -19,6 +20,10 @@ set_target_properties(shaderc_lib PROPERTIES IMPORTED_LOCATION
         ${SHADERC_SRC}/libs/${ANDROID_STL}/${ANDROID_ABI}/libshaderc.a)
 include_directories(${SHADERC_SRC}/include)
 
+# Add Vulkan Validation Layers Shared Library
+include_directories(${PROJECT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libVkLayer_khronos_validation.so)
+add_library(libVkLayer SHARED IMPORTED )
+set_target_properties(libVkLayer PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libVkLayer_khronos_validation.so)
 
 # Add External Dependencies
 include(FetchContent)

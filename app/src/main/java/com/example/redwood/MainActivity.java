@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 String selectedBenchmark = benchmarkSpinner.getSelectedItem().toString();
-                //byte[] jsonBytes = runBenchmarkCPU(selectedBenchmark);
+                // byte[] jsonBytes = runBenchmarkCPU(selectedBenchmark);
                 //String jsonString = new String(jsonBytes, StandardCharsets.UTF_8);
                 String res = runBenchmarkCPU(selectedBenchmark);
                 displayResult(res);

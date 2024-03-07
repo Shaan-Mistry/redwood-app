@@ -14,7 +14,6 @@
    limitations under the License.
 */
 
-
 #include "easyvk.h"
 
 // TODO: extend this to include ios logging lib
@@ -216,7 +215,7 @@ namespace easyvk {
         // Get compute family id based on size of family properties
         for (auto queueFamily : familyProperties) {
             if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-                computeFamilyId = i;;
+                computeFamilyId = i;
                 break;
             }
             i++;
@@ -295,6 +294,9 @@ namespace easyvk {
         // Create device
         vkCheck(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
 
+        // Get queue handle.
+        vkGetDeviceQueue(device, computeFamilyId, 0, &computeQueue);
+
         // Get device properties
         vkGetPhysicalDeviceProperties(physicalDevice, &properties);
     }
@@ -316,33 +318,40 @@ namespace easyvk {
         return uint32_t(-1);
     }
 
-// Get device queue
-    VkQueue Device::computeQueue() {
-        VkQueue queue;
-        vkGetDeviceQueue(device, computeFamilyId, 0, &queue);
-        return queue;
+    uint32_t Device::subgroupSize() {
+        VkPhysicalDeviceSubgroupProperties subgroupProperties;
+        subgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+        subgroupProperties.pNext = NULL;
+
+        VkPhysicalDeviceProperties2 physicalDeviceProperties;
+        physicalDeviceProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        physicalDeviceProperties.pNext = &subgroupProperties;
+
+        vkGetPhysicalDeviceProperties2(physicalDevice, &physicalDeviceProperties);
+        return subgroupProperties.subgroupSize;
     }
 
     void Device::teardown() {
         vkDestroyDevice(device, nullptr);
     }
 
-// Create new buffer
+    // Create new buffer
     VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size) {
         VkBuffer newBuffer;
         vkCheck(vkCreateBuffer(_device.device, new VkBufferCreateInfo {
                 VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                 nullptr,
                 VkBufferCreateFlags {},
-                size * sizeof(uint32_t),
+                size,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT }, nullptr, &newBuffer));
         return newBuffer;
     }
 
-    Buffer::Buffer(easyvk::Device &_device, uint32_t _size) :
+    Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) :
             device(_device),
-            buffer(getNewBuffer(_device, _size)),
-            size(_size)
+            buffer(getNewBuffer(_device, numElements * elementSize)),
+            _numElements(numElements),
+            _elementSize(elementSize)
     {
         // Allocate and map memory to new buffer
         auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -360,7 +369,7 @@ namespace easyvk {
 
         void* newData = new void*;
         vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags {}, &newData));
-        data = (uint32_t*)newData;
+        data = newData;
     }
 
 
@@ -370,11 +379,9 @@ namespace easyvk {
         vkDestroyBuffer(device.device, buffer, nullptr);
     }
 
-// Read spv shader files
+    // Read spv shader files
     std::vector<uint32_t> read_spirv(const char* filename) {
-
         auto fin = std::ifstream(filename, std::ios::binary | std::ios::ate);
-
         if(!fin.is_open()){
             throw std::runtime_error(std::string("failed opening file ") + filename + " for reading");
         }
@@ -389,8 +396,6 @@ namespace easyvk {
 
     VkShaderModule initShaderModule(easyvk::Device& device, std::vector<uint32_t> spvCode) {
         VkShaderModule shaderModule;
-        __android_log_print(ANDROID_LOG_INFO, "EasyVK", "NULL? %d", &device == NULL);
-
         vkCheck(vkCreateShaderModule(device.device, new VkShaderModuleCreateInfo {
                 VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
                 nullptr,
@@ -403,8 +408,6 @@ namespace easyvk {
     }
     VkShaderModule initShaderModule(easyvk::Device& device, const char* filepath) {
         std::vector<uint32_t> code = read_spirv(filepath);
-        VkShaderModule shaderModule;
-        return shaderModule;
         // Create shader module with spv code
         return initShaderModule(device, code);
     }
@@ -434,8 +437,8 @@ namespace easyvk {
         return descriptorSetLayout;
     }
 
-// This function brings descriptorSet, buffers, and bufferInfo to create writeDescriptorSets,
-// which describes a descriptor set write operation
+    // This function brings descriptorSet, buffers, and bufferInfo to create writeDescriptorSets,
+    // which describes a descriptor set write operation
     void writeSets(
             VkDescriptorSet& descriptorSet,
             std::vector<easyvk::Buffer> &buffers,
@@ -517,9 +520,27 @@ namespace easyvk {
         // Update contents of descriptor set object
         vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0,{});
 
-        VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
-        uint32_t specMapContent[1] = {workgroupSize};
-        VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
+        uint32_t numSpecConstants = 3 + workgroupMemoryLengths.size();
+        VkSpecializationMapEntry specMap[numSpecConstants];
+        uint32_t specMapContent[numSpecConstants];
+
+        // first three specialization constants are the workgroup size
+        specMap[0] = VkSpecializationMapEntry{0, 0, sizeof(uint32_t)};
+        specMapContent[0] = workgroupSize;
+        specMap[1] = VkSpecializationMapEntry{1, 4, sizeof(uint32_t)};
+        specMapContent[1] = 1;
+        specMap[2] = VkSpecializationMapEntry{2, 8, sizeof(uint32_t)};
+        specMapContent[2] = 1;
+
+        // key is index, value is length
+        for (const auto &[key, value] : workgroupMemoryLengths)
+        {
+            specMap[3 + key] = VkSpecializationMapEntry{3 + key, (3 + key) * 4, sizeof(uint32_t)};
+            specMapContent[3 + key] = value;
+        }
+
+        VkSpecializationInfo specInfo{numSpecConstants, specMap, numSpecConstants * sizeof(uint32_t), specMapContent};
+
         // Define shader stage create info
         VkPipelineShaderStageCreateInfo stageCI{
                 VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -606,14 +627,14 @@ namespace easyvk {
         uint32_t pValues[3] = {0, 0, 0};
         vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
 
-        /*vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-          1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});*/
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
 
         // Dispatch compute work items
         vkCmdDispatch(commandBuffer, numWorkgroups, 1, 1);
 
-        /*vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-          1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});*/
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
 
         // End recording command buffer
         vkCheck(vkEndCommandBuffer(commandBuffer));
@@ -631,7 +652,7 @@ namespace easyvk {
                 nullptr
         };
 
-        auto queue = device.computeQueue();
+        auto queue = device.computeQueue;
 
         // Submit command buffer to queue, signals fence on completion.
         vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));
@@ -689,7 +710,7 @@ namespace easyvk {
                 nullptr
         };
 
-        auto queue = device.computeQueue();
+        auto queue = device.computeQueue;
 
         // Submit command buffer to queue, signals fence on completion.
         vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));
@@ -720,6 +741,10 @@ namespace easyvk {
 
     void Program::setWorkgroupSize(uint32_t _workgroupSize) {
         workgroupSize = _workgroupSize;
+    }
+
+    void Program::setWorkgroupMemoryLength(uint32_t length, uint32_t index) {
+        workgroupMemoryLengths[index] = length;
     }
 
     Program::Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<Buffer> &_buffers) :

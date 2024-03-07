@@ -75,20 +75,8 @@ std::vector<uint32_t> LoadBinaryFileToVector(const char *file_path,
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_example_redwood_MainActivity_runBenchmarkGPU(JNIEnv *env, jobject thiz, jobject assetManager) {
-//    AAssetManager *mgr = AAssetManager_fromJava(env, assetManager);
-//    auto spvCode = LoadBinaryFileToVector("stripped.spv", mgr);
-//    std::string vertexShaderSource = R"glsl(
-//                            #version 450
-//
-//                            layout(location = 0) in vec3 inPosition;
-//
-//                            void main() {
-//                                gl_Position = vec4(inPosition, 1.0);
-//                            }
-//                            )glsl";
-//    auto spvCode = compile_file("my shader", shaderc_vertex_shader, vertexShaderSource);
     AAssetManager *mgr = AAssetManager_fromJava(env, assetManager);
-    auto spvCode = LoadBinaryFileToVector("stripped.spv", mgr);
+    auto spvCode = LoadBinaryFileToVector("foo.spv", mgr);
     jintArray result = runShader(env, spvCode);
     return env->NewStringUTF("finished!");
 }

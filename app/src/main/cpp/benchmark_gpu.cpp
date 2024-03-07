@@ -1,75 +1,69 @@
 #include <iostream>
 #include <jni.h>
+#include <assert.h>
 #include <shaderc/shaderc.hpp>
 
 #include "easyvk/easyvk.h"
 
+//const int size = 1024 * 16;
 
+const int gridSize = 32;
+const int workGroupSize = 32;
+const int size = 4090 * gridSize;
 jintArray runShader(JNIEnv *env ,std::vector<uint32_t> spvCode) {
-    int gridSize = 32;
-    int workGroupSize = 32;
-    int size = 4090 * gridSize;
-
-    jintArray resultArray = env->NewIntArray(size);
-
-    // Initialize instance
-    auto instance = easyvk::Instance(false);
-
+// Initialize instance.
+    auto instance = easyvk::Instance(true);
     // Get list of available physical devices.
     auto physicalDevices = instance.physicalDevices();
-
     // Create device from first physical device.
     auto device = easyvk::Device(instance, physicalDevices.at(0));
+    std::cout << "Using device: " << device.properties.deviceName << "\n";
 
-    __android_log_print(ANDROID_LOG_INFO, "EasyVK", "Using device %s", device.properties.deviceName);
+    auto numIters = 1;
+    for (int n = 0; n < numIters; n++) {
+        // Define the buffers to use in the kernel.
+        auto a = easyvk::Buffer(device, size, sizeof(uint32_t));
+        auto b = easyvk::Buffer(device, size, sizeof(uint32_t));
+        auto c = easyvk::Buffer(device, size, sizeof(uint32_t));
 
-    auto a = easyvk::Buffer(device, size);
-    auto b = easyvk::Buffer(device, size);
-    auto c = easyvk::Buffer(device, size);
-    auto canary = easyvk::Buffer(device, 1);
+        // Write initial values to the buffers.
+        for (int i = 0; i < size; i++) {
+            // The buffer provides an untyped view of the memory, so you must specify
+            // the type when using the load/store methods.
+            a.store<uint32_t>(i, i);
+            b.store<uint32_t>(i, i + 1);
+        }
+        c.clear();
+        std::vector<easyvk::Buffer> bufs = {a, b, c};
 
-    long iterations = 0;
+        auto program = easyvk::Program(device, spvCode, bufs);
 
-    // Write initial values to the buffers.
-    for (int i = 0; i < size; i++) {
-        a.store(i, i);
-        b.store(i, i);
-        c.store(i, i);
+        program.setWorkgroups(size);
+        program.setWorkgroupSize(1);
+
+        // Run the kernel.
+        program.initialize("litmus_test");
+
+        program.run();
+
+        // Check the output.
+        for (int i = 0; i < size; i++) {
+            // std::cout << "c[" << i << "]: " << c.load(i) << "\n";
+            assert(c.load<uint32_t>(i) == a.load<uint32_t>(i) + b.load<uint32_t>(i));
+        }
+
+        // Cleanup.
+        program.teardown();
+        a.teardown();
+        b.teardown();
+        c.teardown();
     }
 
-    std::vector<easyvk::Buffer> bufs = {a, b, c, canary};
-
-    auto program = easyvk::Program(device, spvCode, bufs);
-
-    // Dispatch 4 work groups of size 1 to carry out the work.
-    program.setWorkgroups(gridSize);
-    program.setWorkgroupSize(workGroupSize);
-
-    // Run the kernel.
-    program.initialize("covertListener");
-
-    program.run();
-
-    jint *elements = env->GetIntArrayElements(resultArray, nullptr); // here
-
-    //int nonZeros = 0;
-    for(int i = 0; i < size; i++) {
-        unsigned v = c.load(i);
-        elements[i] = v;
-    }
-
-    program.teardown();
-
-    // Cleanup.
-    a.teardown();
-    b.teardown();
-    c.teardown();
     device.teardown();
     instance.teardown();
-
-    env->ReleaseIntArrayElements(resultArray, elements, 0); // here
-
-    return resultArray;
+    __android_log_print(ANDROID_LOG_INFO, "EasyVK", "Finished!!");
+    return nullptr;
+    //return resultArray;
 }
 
 

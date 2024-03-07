@@ -35,7 +35,7 @@ const std::unordered_map<std::string, std::string> benchmarkNames = {
 std::string runCPUBenchmark(std::string benchmark) {
     // Initialize Benchmark and set configuration flags
     int argc = 3;
-    char* argv[3] = {"test", "--benchmark_repetitions=20", "--benchmark_report_aggregates_only=true"};
+    char* argv[3] = {"test", "--benchmark_repetitions=1", "--benchmark_report_aggregates_only=true"};
     // Set output format
     benchmark::CSVReporter reporter;
     BenchmarkStream outStream;
