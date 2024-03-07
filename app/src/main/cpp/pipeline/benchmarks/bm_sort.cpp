@@ -60,8 +60,7 @@ static void BM_SimpleRadixSort_WithBuffer(bm::State& st) {
 
 BENCHMARK(BM_SimpleRadixSort)
     ->RangeMultiplier(2)
-    ->Range(1, 48)
-    ->Iterations(20)
+    ->Range(1, 16)
     ->Unit(bm::kMillisecond);
 
 //BENCHMARK(BM_SimpleRadixSort_WithBuffer)

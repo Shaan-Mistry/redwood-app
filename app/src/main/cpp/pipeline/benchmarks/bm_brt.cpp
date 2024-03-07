@@ -32,7 +32,10 @@ static void BM_Unique(bm::State& st) {
 }
 
 //BENCHMARK(BM_StdUnique)->Unit(bm::kMillisecond);
-BENCHMARK(BM_Unique)->Unit(bm::kMillisecond);
+BENCHMARK(BM_Unique)
+        ->RangeMultiplier(2)
+        ->Range(1, 16)
+        ->Unit(bm::kMillisecond);
 
 // -----------------------------------------------------
 
@@ -117,13 +120,12 @@ static void BM_PrefixSum_Std(bm::State& st) {
 
 BENCHMARK(BM_RadixTree)
     ->RangeMultiplier(2)
-    ->Range(1, 48)
-    ->Iterations(20)
+    ->Range(1, 16)
     ->Unit(bm::kMillisecond);
 
 BENCHMARK(BM_EdgeCount)
     ->RangeMultiplier(2)
-    ->Range(1, 48)
+    ->Range(1, 16)
     ->Unit(bm::kMillisecond)
     ->DisplayAggregatesOnly(true);
 

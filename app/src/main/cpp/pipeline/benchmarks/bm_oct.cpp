@@ -183,13 +183,12 @@ static void BM_LinkOctreeNodes(bm::State& st) {
 
 BENCHMARK(BM_MakeOctNodes)
         ->RangeMultiplier(2)
-        ->Range(1, 48)
-        ->Iterations(20)
+        ->Range(1, 16)
         ->Unit(bm::kMillisecond);
 
 BENCHMARK(BM_LinkOctreeNodes)
         ->RangeMultiplier(2)
-        ->Range(1, 48)
+        ->Range(1, 16)
         ->Unit(bm::kMillisecond);
 
 //BENCHMARK_MAIN();

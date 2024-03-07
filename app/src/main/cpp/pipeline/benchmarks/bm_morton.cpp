@@ -29,9 +29,9 @@ static void BM_Morton32(bm::State& st) {
   //omp_set_num_threads(num_threads);
 
 
-
   for (auto _ : st) {
-    k_ComputeMortonCodeParallel(data, morton_keys, kN, kMin, kRange);
+    //k_ComputeMortonCodeParallel(data, morton_keys, kN, kMin, kRange);
+    k_ComputeMortonCode(data, morton_keys, kN, kMin, kRange);
   }
 
   delete[] data;
@@ -63,8 +63,7 @@ static void BM_Morton32(bm::State& st) {
 
 BENCHMARK(BM_Morton32)
     ->RangeMultiplier(2)
-    ->Range(1, 1)
-    ->Iterations(1)
+    ->Range(1, 16)
     ->Unit(bm::kMillisecond);
 
 //BENCHMARK_MAIN();
